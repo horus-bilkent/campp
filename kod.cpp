@@ -2,18 +2,16 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
+#include <cmath>
+#include <vector>
 using namespace cv;
 using namespace std;
 
-char winName[] = "YARRAK";
+char winName1[] = "YARRAK";
+char winName2[] = "DASSAK";
+char winName3[] = "AM";
+const double thr = 0.05;
 
-/**
- * Perform one thinning iteration.
- * Normally you wouldn't call this function directly from your code.
- *
- * @param  im    Binary image with range = 0-1
- * @param  iter  0=even, 1=odd
- */
 void thinningIteration(cv::Mat& im, int iter)
 {
     cv::Mat marker = cv::Mat::zeros(im.size(), CV_8UC1);
@@ -47,11 +45,6 @@ void thinningIteration(cv::Mat& im, int iter)
     im &= ~marker;
 }
 
-/**
- * Function for thinning the given binary image
- *
- * @param  im  Binary image with range = 0-255
- */
 void thinning(cv::Mat& im)
 {
     im /= 255;
@@ -90,6 +83,41 @@ bool circleLineIntersect(float x1, float y1, float x2, float y2, float
 	}
 }
 
+void myhough(cv::Mat& im, vector<Vec4i>& lines, float cx, float cy, float cr) {
+	const float theta = CV_PI / 180;
+	const float rho = 5;
+	int acc[500][500];
+
+	for(int i = 0; i < im.rows; i++)
+		for(int j = 0; j < im.cols; j++) {
+			uchar p = im.at<uchar>(i, j);
+			if(p != 0) {
+				int x = i - cx;
+				int y = j - cy;
+				
+				for(int a = 0; a * theta <= CV_PI; a++) {
+					float b = x * cos(a * theta) + y * sin(a * theta);
+					if(b <= cr && b >= -cr) {
+						int bint = (b + cr) / rho;
+						acc[a][bint]++;
+					}
+				}
+			}
+		}
+	
+		
+	for(int i = 0; i * theta <= CV_PI; i++)
+		for(int j = 0; j * rho <= cr + cr; j++) {
+			if(acc[i][j] > 200) {
+				printf("ACC: %d, %d - %g, %g = %d\n", i, j, i * theta, (j * rho) - cr, acc[i][j]);
+				int x1 = -cx;
+				int y1 = ((j * rho) - cr - x1 * cos(i * theta)) / sin(i * theta);
+				int x2 = im.rows - 1 -cx;
+				int y2 = ((j * rho) - cr - x2 * cos(i * theta)) / sin(i * theta);
+				lines.push_back(Vec4i(x1 + cx, y1 + cy, x2 + cx, y2 + cy));
+			}
+		}
+}
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -103,15 +131,24 @@ int main(int argc, char** argv) {
 		cout << "ACAMADIM YA LA" << endl;
 	}
 
+
+	//GaussianBlur(img, img, Size(11, 11), 6.0);
+	Mat img_equ;
+	equalizeHist(img, img_equ);
+	GaussianBlur(img_equ, img_equ, Size(11, 11), 6.0);
 	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
+	adaptiveThreshold(img_equ, img_equ, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
+	thinning(img_equ);
 	thinning(img_bin);
-	cvtColor(img_bin, img_bgr, COLOR_GRAY2BGR);
+
+	cvtColor(img_equ, img_bgr, CV_GRAY2BGR);
+	float cx = img_bgr.rows / 2, cy = img_bgr.cols / 2;
+	float cr = img_bgr.rows / 25;
+	float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols + img_bgr.cols) * thr;
 
 	vector<Vec4i> lines;
-	HoughLinesP(img_bin, lines, 1, CV_PI/180, 50, 50, 10);
-
-	float cx = img_bgr.rows / 2, cy = img_bgr.cols / 2;
-	float cr = 50;
+	//myhough(img_bin, lines, cx, cy, cr);
+	HoughLinesP(img_equ, lines, 1, 1 * (CV_PI/180), 80, minLength, 10);
 
 	for(size_t i = 0; i < lines.size(); i++) {
 		Vec4i l = lines[i];
@@ -119,18 +156,19 @@ int main(int argc, char** argv) {
 
 		bool flag = circleLineIntersect(l[0], l[1], l[2], l[3], cx, cy, cr);
 		
-		if(flag)
-			line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 255), 3, CV_AA);
+		//if(flag)
+			line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 255), 1, CV_AA);
 	}
 
-	circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 50, Scalar(0, 0, 255), 3, CV_AA);
+	circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), cr, Scalar(0, 0, 255), -cr, CV_AA);
 
-	namedWindow(winName, WINDOW_AUTOSIZE);
-	imshow(winName, img_bin);
-	imshow(winName, img_bgr);
+	namedWindow(winName2, WINDOW_AUTOSIZE);
+	imshow(winName2, img_bgr);
+	//imshow(winName2, img_equ);
 
 	waitKey(0);
-	destroyWindow(winName);
+	//destroyWindow(winName1);
+	destroyWindow(winName2);
 
 	return 0;
 }
