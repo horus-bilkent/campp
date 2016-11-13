@@ -1,6 +1,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
+#include <cmath>
 using namespace cv;
 using namespace std;
 
@@ -133,6 +134,35 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 	return maxX - minX < 10;
 }
 
+double getPolarScaleMark(Mat& im, const vector<Point> & contour, int cx, int cy, int cr) {
+	float avgY = 0;
+	int numY = 0;
+
+	for(size_t i = 0; i < contour.size(); i++)
+		if(contour[i].x > im.cols * 0.9) {
+			numY++;
+			avgY += contour[i].y;
+		}
+	avgY /= numY;
+
+	double theta = (avgY * 2 * CV_PI) / (im.rows - 1);
+	return theta;
+}
+
+void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr) {
+	double rho = cr;
+	double a = cos(theta), b = sin(theta);
+	double x0 = a * rho, y0 = b * rho;
+	cout << "THETA: " << (theta * 360) / (2 * CV_PI) << endl;
+	Point pt1, pt2;
+   pt1.x = cvRound(x0 + 10*(a) + cx);
+   pt1.y = cvRound(y0 + 10*(b) + cy);
+   pt2.x = cvRound(x0 - 10*(a) + cx);
+   pt2.y = cvRound(y0 - 10*(b) + cy);
+   line(im, pt1, pt2, Scalar(0,0,255), 2, CV_AA);
+	line(im, Point(cx, cy), Point(x0 + cx, y0 + cy), Scalar(255, 0, 255), 1);
+}
+
 int main(int argc, char** argv) {
 	if(argc != 2) {
 		cout << "Usage: ./a.out image_path" << endl;
@@ -149,55 +179,26 @@ int main(int argc, char** argv) {
 	thinning(img_bin);
 	Mat img_pro;
 	float cx = img.rows / 2, cy = img.cols / 2;
-	float cr = img.rows / 30;
-	float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols * img_bgr.cols) * thr;
+	//float cr = img.rows / 30;
+	//float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols * img_bgr.cols) * thr;
 	precalc(img, img_pro, cx, cy, 190);
 
-	cvtColor(img_pro, img_bgr, COLOR_GRAY2BGR);
+	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
 	img_pro.copyTo(img_bin);
-
-	/*vector<Vec2f> lines;
-	HoughLines(img_bin, lines, 3, 3 * CV_PI/180, 40, 3, 3);
-
-	for( size_t i = 0; i < lines.size(); i++ ) {
-		float rho = lines[i][0], theta = lines[i][1];
-		Point pt1, pt2;
-		double a = cos(theta), b = sin(theta);
-		double x0 = a*rho, y0 = b*rho;
-		pt1.x = cvRound(x0 + 1000*(-b));
-		pt1.y = cvRound(y0 + 1000*(a));
-	   pt2.x = cvRound(x0 - 1000*(-b));
-		pt2.y = cvRound(y0 - 1000*(a));
-		if(abs(theta - CV_PI / 2) < 0.1) {
-			line(img_bgr, pt1, pt2, Scalar(0,0,255), 1, CV_AA);
-			cout << "FOUND: r=" << rho << " theta=" << theta << endl;
-		}
-	}*/
-
-
-	/*vector<Vec4i> lines;
-	HoughLinesP(img_bin, lines, 1, CV_PI/180, 20, 10, 10);
-
-	for(size_t i = 0; i < lines.size(); i++) {
-		Vec4i l = lines[i];
-		cout << "POINT 1: " << l[0] << " " << l[1] << " - POINT 2: " << l[2] << " " << l[3] << endl;
-
-		bool flag = circleLineIntersect(l[0], l[1], l[2], l[3], cx, cy, cr);
-		
-		//if(flag)
-		if((l[1] - l[3]) * (l[1] - l[3]) <= 10)
-			line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 255), 1, CV_AA);
-	}*/
 
 	vector<vector<Point> > contours;
 	vector<Vec4i> hie;
-	findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0)); 
+	findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0)); 
 	for(size_t i = 0; i < contours.size(); i++)
 		if(isScaleMark(contours[i], img_bin.cols)) {
-			drawContours(img_bgr, contours, i, Scalar(255, 255, 0), 1, 8, hie, 0, Point());
+			double theta = getPolarScaleMark(img_bgr, contours[i], cx, cy, 190);
+			drawScaleMark(img_bgr, theta, cx, cy, 190);
 		}
+	
+	
+	cout << "POLAR IMAGE SIZE: " << img_bgr.rows << ", " << img_bgr.cols << ";" << endl;
 
-	//circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 250, Scalar(0, 0, 255), 10, CV_AA);
+	circle(img_bgr, Point(cx, cy), 20, Scalar(0, 0, 255), 3, CV_AA);
 
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img_bgr);
