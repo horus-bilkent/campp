@@ -1,11 +1,11 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <iostream>
 using namespace cv;
 using namespace std;
 
 char winName[] = "YARRAK";
+const float thr = 0.25;
 
 /**
  * Perform one thinning iteration.
@@ -90,6 +90,48 @@ bool circleLineIntersect(float x1, float y1, float x2, float y2, float
 	}
 }
 
+void precalc(Mat& src, Mat &dst, float cx, float cy, float cr) {
+	Mat temp;
+	equalizeHist(src, dst);
+	medianBlur(dst, dst, 5);
+
+	linearPolar(dst, dst, Point2f(cx, cy), cr, INTER_LINEAR + WARP_FILL_OUTLIERS); 
+	adaptiveThreshold(dst, dst, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
+	Sobel(dst, dst, dst.type(), 0, 1, 9, 1, 0, BORDER_DEFAULT);
+	//Canny(dst, dst, 50, 150, 3);
+	thinning(dst);
+
+	//dilate(dst, dst, element);
+	//erode(dst, dst, element);
+}
+
+bool isScaleMark(const vector<Point>& contour, float imgY) {
+	float minX, maxX;
+	bool flagX = true, flagY = true;
+
+	float thresY = imgY * (9.5 / 10); 
+
+	cout << "########### START CONTOUR #############" << endl;
+	for(size_t i = 0; i < contour.size(); i++) {
+		cout << contour[i] << endl;
+		if(contour[i].x > thresY) {
+			if(flagX || contour[i].y < minX) {
+				minX = contour[i].y;
+				flagX = false;
+			}
+			if(flagY || contour[i].y > maxX) {
+				maxX = contour[i].y;
+				flagY = false;
+			}
+		}
+	}	
+
+	cout << "########### END CONTOUR[" << (!(flagX || flagY) && (maxX - minX < 10)) << "] #############" << endl;
+	if(flagX || flagY)
+		return false;
+
+	return maxX - minX < 10;
+}
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -105,13 +147,36 @@ int main(int argc, char** argv) {
 
 	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
 	thinning(img_bin);
-	cvtColor(img_bin, img_bgr, COLOR_GRAY2BGR);
+	Mat img_pro;
+	float cx = img.rows / 2, cy = img.cols / 2;
+	float cr = img.rows / 30;
+	float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols * img_bgr.cols) * thr;
+	precalc(img, img_pro, cx, cy, 190);
 
-	vector<Vec4i> lines;
-	HoughLinesP(img_bin, lines, 1, CV_PI/180, 50, 50, 10);
+	cvtColor(img_pro, img_bgr, COLOR_GRAY2BGR);
+	img_pro.copyTo(img_bin);
 
-	float cx = img_bgr.rows / 2, cy = img_bgr.cols / 2;
-	float cr = 50;
+	/*vector<Vec2f> lines;
+	HoughLines(img_bin, lines, 3, 3 * CV_PI/180, 40, 3, 3);
+
+	for( size_t i = 0; i < lines.size(); i++ ) {
+		float rho = lines[i][0], theta = lines[i][1];
+		Point pt1, pt2;
+		double a = cos(theta), b = sin(theta);
+		double x0 = a*rho, y0 = b*rho;
+		pt1.x = cvRound(x0 + 1000*(-b));
+		pt1.y = cvRound(y0 + 1000*(a));
+	   pt2.x = cvRound(x0 - 1000*(-b));
+		pt2.y = cvRound(y0 - 1000*(a));
+		if(abs(theta - CV_PI / 2) < 0.1) {
+			line(img_bgr, pt1, pt2, Scalar(0,0,255), 1, CV_AA);
+			cout << "FOUND: r=" << rho << " theta=" << theta << endl;
+		}
+	}*/
+
+
+	/*vector<Vec4i> lines;
+	HoughLinesP(img_bin, lines, 1, CV_PI/180, 20, 10, 10);
 
 	for(size_t i = 0; i < lines.size(); i++) {
 		Vec4i l = lines[i];
@@ -119,14 +184,22 @@ int main(int argc, char** argv) {
 
 		bool flag = circleLineIntersect(l[0], l[1], l[2], l[3], cx, cy, cr);
 		
-		if(flag)
-			line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 255), 3, CV_AA);
-	}
+		//if(flag)
+		if((l[1] - l[3]) * (l[1] - l[3]) <= 10)
+			line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 255), 1, CV_AA);
+	}*/
 
-	circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 50, Scalar(0, 0, 255), 3, CV_AA);
+	vector<vector<Point> > contours;
+	vector<Vec4i> hie;
+	findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0)); 
+	for(size_t i = 0; i < contours.size(); i++)
+		if(isScaleMark(contours[i], img_bin.cols)) {
+			drawContours(img_bgr, contours, i, Scalar(255, 255, 0), 1, 8, hie, 0, Point());
+		}
+
+	//circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 250, Scalar(0, 0, 255), 10, CV_AA);
 
 	namedWindow(winName, WINDOW_AUTOSIZE);
-	imshow(winName, img_bin);
 	imshow(winName, img_bgr);
 
 	waitKey(0);
