@@ -114,7 +114,7 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 
 	cout << "########### START CONTOUR #############" << endl;
 	for(size_t i = 0; i < contour.size(); i++) {
-		cout << contour[i] << endl;
+		//cout << contour[i] << endl;
 		if(contour[i].x > thresY) {
 			if(flagX || contour[i].y < minX) {
 				minX = contour[i].y;
@@ -160,7 +160,37 @@ void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr) {
    pt2.x = cvRound(x0 - 10*(a) + cx);
    pt2.y = cvRound(y0 - 10*(b) + cy);
    line(im, pt1, pt2, Scalar(0,0,255), 2, CV_AA);
-	line(im, Point(cx, cy), Point(x0 + cx, y0 + cy), Scalar(255, 0, 255), 1);
+	line(im, Point(cx, cy), Point(x0 + cx, y0 + cy), Scalar(0, 255, 0), 1);
+}
+
+void findNeedle(Mat img, Mat &img_bgr, double cx, double cy, double cr) {
+	Mat img_bin;
+	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
+	thinning(img_bin);
+
+	vector<Vec4i> lines;
+	HoughLinesP(img_bin, lines, 1, CV_PI/180, 50, 50, 10);
+	Vec4i res;
+	double resSize;
+	bool isRes = false;
+
+	for(size_t i = 0; i < lines.size(); i++) {
+		Vec4i l = lines[i];
+
+		bool flag = circleLineIntersect(l[0], l[1], l[2], l[3], cx, cy, cr);
+		double size = (l[0] - l[2]) * (l[0] - l[2]) + (l[1] - l[3]) * (l[1] - l[3]);
+		
+		if(flag && (!isRes || resSize < size)) {
+			isRes = true;
+			resSize = size;
+			res = l;
+			cout << "POINT 1: " << l[0] << " " << l[1] << " - POINT 2: " << l[2] << " " << l[3] << endl;
+			cout << "SIZE: " << size << endl;
+		}
+	}
+
+	line(img_bgr, Point(res[0], res[1]), Point(res[2], res[3]), Scalar(0, 255, 255), 3, CV_AA);
+	circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 50, Scalar(0, 0, 255), 3, CV_AA);	 
 }
 
 int main(int argc, char** argv) {
@@ -179,11 +209,12 @@ int main(int argc, char** argv) {
 	thinning(img_bin);
 	Mat img_pro;
 	float cx = img.rows / 2, cy = img.cols / 2;
-	//float cr = img.rows / 30;
+	float cr = img.rows / 30;
 	//float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols * img_bgr.cols) * thr;
 	precalc(img, img_pro, cx, cy, 190);
 
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
+	findNeedle(img, img_bgr, cx, cy, cr);
 	img_pro.copyTo(img_bin);
 
 	vector<vector<Point> > contours;
@@ -197,8 +228,6 @@ int main(int argc, char** argv) {
 	
 	
 	cout << "POLAR IMAGE SIZE: " << img_bgr.rows << ", " << img_bgr.cols << ";" << endl;
-
-	circle(img_bgr, Point(cx, cy), 20, Scalar(0, 0, 255), 3, CV_AA);
 
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img_bgr);
