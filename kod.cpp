@@ -2,6 +2,7 @@
 #include <opencv2/imgproc.hpp>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 using namespace cv;
 using namespace std;
 
@@ -112,7 +113,7 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 
 	float thresY = imgY * (9.5 / 10); 
 
-	cout << "########### START CONTOUR #############" << endl;
+	//cout << "########### START CONTOUR #############" << endl;
 	for(size_t i = 0; i < contour.size(); i++) {
 		//cout << contour[i] << endl;
 		if(contour[i].x > thresY) {
@@ -127,7 +128,7 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 		}
 	}	
 
-	cout << "########### END CONTOUR[" << (!(flagX || flagY) && (maxX - minX < 10)) << "] #############" << endl;
+	//cout << "########### END CONTOUR[" << (!(flagX || flagY) && (maxX - minX < 10)) << "] #############" << endl;
 	if(flagX || flagY)
 		return false;
 
@@ -153,7 +154,7 @@ void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr) {
 	double rho = cr;
 	double a = cos(theta), b = sin(theta);
 	double x0 = a * rho, y0 = b * rho;
-	cout << "THETA: " << (theta * 360) / (2 * CV_PI) << endl;
+	//cout << "THETA: " << (theta * 360) / (2 * CV_PI) << endl;
 	Point pt1, pt2;
    pt1.x = cvRound(x0 + 10*(a) + cx);
    pt1.y = cvRound(y0 + 10*(b) + cy);
@@ -184,13 +185,221 @@ void findNeedle(Mat img, Mat &img_bgr, double cx, double cy, double cr) {
 			isRes = true;
 			resSize = size;
 			res = l;
-			cout << "POINT 1: " << l[0] << " " << l[1] << " - POINT 2: " << l[2] << " " << l[3] << endl;
-			cout << "SIZE: " << size << endl;
+			//cout << "POINT 1: " << l[0] << " " << l[1] << " - POINT 2: " << l[2] << " " << l[3] << endl;
+			//cout << "SIZE: " << size << endl;
 		}
 	}
 
 	line(img_bgr, Point(res[0], res[1]), Point(res[2], res[3]), Scalar(0, 255, 255), 3, CV_AA);
-	circle(img_bgr, Point(img_bgr.rows / 2, img_bgr.cols / 2), 50, Scalar(0, 0, 255), 3, CV_AA);	 
+	circle(img_bgr, Point(cx, cy), cr, Scalar(0, 0, 255), 3, CV_AA);	 
+}
+
+void getScoreIt(double diff, int &lSub, int &cSub, double &prevDiff) {
+	const double epsilon = (2.0 / 360) * 2 * CV_PI;
+
+	if(abs(diff - prevDiff) < epsilon) {
+		cSub++;
+	} else {
+		cSub = 1;
+		prevDiff = diff;
+	}
+	if(cSub > lSub) {
+		lSub = cSub;
+	}
+}
+
+double getScore(vector<double> &thetas) {
+	if(thetas.size() < 1)
+		return -1;
+	sort(thetas.begin(), thetas.end());
+	vector<double> diff;
+
+	diff.push_back(thetas[0] + 2 * CV_PI - thetas[thetas.size() - 1]);
+	for(size_t i = 1; i < thetas.size(); i++)
+		diff.push_back(thetas[i] - thetas[i - 1]);
+
+
+	/*cout << "############## DIFFS START [SIZE: " << diff.size() << "] #################### " << endl;
+	for(size_t i = 0; i < diff.size(); i++)
+		cout << "#" << i << " Theta: " << thetas[i] << " Diff: " << (diff[i] * 360) / (2 * CV_PI)  << endl;*/
+
+	int lSub = 0, cSub = 0;
+	double prevDiff;
+	prevDiff = diff[0];
+	lSub = 1;
+	cSub = 1;
+
+	for(size_t i = 1; i < diff.size(); i++)
+		getScoreIt(diff[i], lSub, cSub, prevDiff);
+
+	for(size_t i = 0; i < diff.size(); i++)
+		getScoreIt(diff[i], lSub, cSub, prevDiff);
+	//cout << "############## DIFFS END [MAX: " << lSub << "] #################### " << endl;
+	
+	return lSub;
+}
+
+Vec3i findCenter(Mat img, vector<double> &theta) {
+	Mat img_pro, img_bin, img_bgr;
+	double maxPoint;
+	bool isMax = false;
+	Vec3i res;
+	vector<double> tempt;
+	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
+
+	for(int x = 0; x < img.cols - 1; x++)
+		for(int y = 0; y < img.rows - 1; y++) {
+			for(int r = img.cols / 5; r < img.cols * 0.95; r++) {
+				/*x = img.cols / 2 + 1;
+				y = img.rows / 2 + 1;
+				r = 190;*/
+				cout << "#### Trying (" << x << ", " << y << ", " << r << ") #########" << endl;
+				precalc(img, img_pro, x, y, r);
+				img_pro.copyTo(img_bin);
+
+				vector<vector<Point> > contours;
+				tempt.clear();
+				vector<Vec4i> hie;
+				findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+				for(size_t i = 0; i < contours.size(); i++)
+					if(isScaleMark(contours[i], img_bin.cols)) {
+						tempt.push_back(getPolarScaleMark(img_bin, contours[i], x, y, r));
+					}
+
+				double p = getScore(tempt);
+				if(!isMax || p > maxPoint) {
+					maxPoint = p;
+					theta = tempt;
+				}
+
+				cout << "SCORE: " << p << endl;
+	/*			for(size_t i = 0; i < theta.size(); i++) {
+					drawScaleMark(img_bgr, theta[i], x, y, r);
+				}
+
+				namedWindow(winName, WINDOW_AUTOSIZE);
+				imshow(winName, img_bgr);
+
+				waitKey(0);
+				destroyWindow(winName);
+
+				return maxPoint;*/
+			}
+		}
+	
+	return maxPoint;
+}
+
+bool getIntersection(Vec4i a, Vec4i b, Point &res) {
+	double A1 = a[3] - a[1], B1 = a[0] - a[2], C1 = A1*a[0] + B1 * a[1];
+	double A2 = b[3] - b[1], B2 = b[0] - b[2], C2 = A2*b[0] + B2 * b[1];
+	double det = A1 * B2 - A2 * B1;
+	if(det == 0)
+		return false;
+	res.x = (B2 * C1 - B1 * C2) / det;
+	res.y = (A1 * C2 - A2 * C1) / det;
+	return true;
+}
+
+void calcCircle(Point &center, double &rad, Point a, Point b) {
+	double dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+	if(rad == -1 || dist >= rad) {
+		rad = dist;
+		center.x = (a.x + b.x) / 2.0;
+		center.y = (a.y + b.y) / 2.0;
+	}
+}
+
+void test_img(Mat img, Mat &img_bgr) {
+	Mat img_bin;
+	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
+	thinning(img_bin);
+	cvtColor(img_bin, img_bgr, COLOR_GRAY2BGR);
+
+	vector<Vec4i> lines;
+	HoughLinesP(img_bin, lines, 1, CV_PI/180, 30, 5, 10);
+	Vec4i res;
+	double resSize;
+	bool isRes = false;
+
+	for(size_t i = 0; i < lines.size(); i++) {
+		Vec4i l = lines[i];
+
+		double size = (l[0] - l[2]) * (l[0] - l[2]) + (l[1] - l[3]) * (l[1] - l[3]);
+		line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255, 0, 255), 2, CV_AA);
+		
+		if(!isRes || resSize < size) {
+			isRes = true;
+			resSize = size;
+			res = l;
+			//cout << "POINT 1: " << l[0] << " " << l[1] << " - POINT 2: " << l[2] << " " << l[3] << endl;
+			//cout << "SIZE: " << size << endl;
+		}
+	}
+
+	vector<Point> ints;
+
+	double lim = ((img.rows + img.cols) / 2) * 0.1;
+	for(size_t i = 0; i < lines.size(); i++)
+		for(size_t j = i + 1; j < lines.size(); j++)
+			for(size_t k = j + 1; k < lines.size(); k++) {
+				Point p1, p2, p3;
+				bool isInter = getIntersection(lines[i], lines[j], p1);
+				if(!isInter) continue;
+				isInter = getIntersection(lines[j], lines[k], p2);
+				if(!isInter) continue;
+				isInter = getIntersection(lines[i], lines[k], p3);
+				if(!isInter) continue;
+				Point center;
+				double rad = -1;
+				calcCircle(center, rad, p1, p2);
+				calcCircle(center, rad, p1, p3);
+				calcCircle(center, rad, p3, p2);
+				if(rad <= lim) {
+					//cout << "CENTER: " << center << " p1: " << p1 << " p2: " << p2 << " p3: " << p3 << endl;
+					ints.push_back(center);
+				}
+			}
+	
+	for(size_t i = 0; i < ints.size(); i++)
+		circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);	 
+	
+	printf("NUMBER OF INTERSECTIONS FOUND: %lu\n", ints.size());
+
+	double scale = 3;
+	double max_range = min(img.rows,img.cols) / 2.0;
+	double range_scale = max_range / 10;
+	const int center_threshold = ints.size() * 0.1;
+	printf("MAX_RANGE: %.3f\n CENTER_THRESH: %d\n", max_range, center_threshold);
+	for(int range = range_scale; range < max_range; range += range_scale) {
+		int max_count = -1;
+		Point centerMax;
+
+		for(int i = 0; i < img.cols / scale; i++)
+			for(int j = 0; j < img.rows / scale; j++) {
+				double x = i * scale;
+				double y = j * scale;
+				int count = 0;
+				for(size_t t = 0; t < ints.size(); t++) {
+					double dist = (x - ints[t].x) * (x - ints[t].x) + (y - ints[t].y) * (y - ints[t].y);
+					count += (dist <= range * range);
+					//cout << "RANGE*RANGE: " << range * range << " DIST: " << dist << " cent: " << Point(x, y) << " CHECK: " << ints[t] << " = COUNT( " << count << ")" << endl;
+				}
+
+				if(count > max_count) {
+					cout << "Range: " << range << "\tCENT: " << Point(x, y) << "\t= count( " << count << " )" << endl;
+					max_count = count;
+					centerMax = Point(x, y);
+				}
+			}
+
+		if(max_count > center_threshold) {
+			circle(img_bgr, centerMax, range, Scalar(255, 255, 0), 3, CV_AA);
+			return;	
+		}
+	}
+
+	//line(img_bgr, Point(res[0], res[1]), Point(res[2], res[3]), Scalar(0, 255, 255), 3, CV_AA);
 }
 
 int main(int argc, char** argv) {
@@ -199,35 +408,22 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	Mat img, img_bin, img_bgr;
-	img = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
-	if(!img.data) {
+	Mat img, img_tmp, img_bin, img_bgr;
+	img_tmp = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
+	if(!img_tmp.data) {
 		cout << "ACAMADIM YA LA" << endl;
 	}
-
-	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
-	thinning(img_bin);
-	Mat img_pro;
-	float cx = img.rows / 2, cy = img.cols / 2;
-	float cr = img.rows / 30;
-	//float minLength = sqrt(img_bgr.rows * img_bgr.rows + img_bgr.cols * img_bgr.cols) * thr;
-	precalc(img, img_pro, cx, cy, 190);
-
+	Size size(800, img_tmp.rows * (800.0/img_tmp.cols));
+	resize(img_tmp, img, size, 0, 0, INTER_LANCZOS4);
+	//img_tmp.copyTo(img);
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
-	findNeedle(img, img_bgr, cx, cy, cr);
-	img_pro.copyTo(img_bin);
 
-	vector<vector<Point> > contours;
-	vector<Vec4i> hie;
-	findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0)); 
-	for(size_t i = 0; i < contours.size(); i++)
-		if(isScaleMark(contours[i], img_bin.cols)) {
-			double theta = getPolarScaleMark(img_bgr, contours[i], cx, cy, 190);
-			drawScaleMark(img_bgr, theta, cx, cy, 190);
-		}
-	
-	
-	cout << "POLAR IMAGE SIZE: " << img_bgr.rows << ", " << img_bgr.cols << ";" << endl;
+	vector<double> thetas;
+	//Vec3i center = findCenter(img, thetas);
+	//circle(img_bgr, Point(center[0], center[1]), center[2], Scalar(0, 0, 255), 3, CV_AA);	 
+
+	test_img(img, img_bgr);
+	//findNeedle(img, img_bgr, cx, cy, cr); 
 
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img_bgr);
