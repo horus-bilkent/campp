@@ -6,7 +6,7 @@
 using namespace cv;
 using namespace std;
 
-char winName[] = "YARRAK";
+char winName[] = "DEBUG";
 const float thr = 0.25;
 
 /**
@@ -164,7 +164,9 @@ void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr) {
 	line(im, Point(cx, cy), Point(x0 + cx, y0 + cy), Scalar(0, 255, 0), 1);
 }
 
-void findNeedle(Mat img, Mat &img_bgr, double cx, double cy, double cr) {
+void findNeedle(Mat img, Mat &img_bgr, Point center, double cr) {
+	double cx = center.x;
+	double cy = center.y;
 	Mat img_bin;
 	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
 	thinning(img_bin);
@@ -239,20 +241,23 @@ double getScore(vector<double> &thetas) {
 	return lSub;
 }
 
-Vec3i findCenter(Mat img, vector<double> &theta) {
+double findPerimeter(Mat img, vector<double> &theta, Point center, int center_range) {
 	Mat img_pro, img_bin, img_bgr;
 	double maxPoint;
 	bool isMax = false;
-	Vec3i res;
 	vector<double> tempt;
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
+	double res;
+	double max_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 2;
+	double min_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 0.1;
 
-	for(int x = 0; x < img.cols - 1; x++)
-		for(int y = 0; y < img.rows - 1; y++) {
-			for(int r = img.cols / 5; r < img.cols * 0.95; r++) {
-				/*x = img.cols / 2 + 1;
-				y = img.rows / 2 + 1;
-				r = 190;*/
+	
+	for(int i = 0; i < center_range; i++)
+		for(double j = 0; j < 2 * CV_PI; j += CV_PI / 180) {
+			double x = i * cos(j) + center.x;
+			double y = j * sin(j) + center.y;
+			for(int r = min_range; r < max_range; r+=5) {
+				r = 238;
 				cout << "#### Trying (" << x << ", " << y << ", " << r << ") #########" << endl;
 				precalc(img, img_pro, x, y, r);
 				img_pro.copyTo(img_bin);
@@ -270,24 +275,15 @@ Vec3i findCenter(Mat img, vector<double> &theta) {
 				if(!isMax || p > maxPoint) {
 					maxPoint = p;
 					theta = tempt;
+					res = r;
 				}
 
 				cout << "SCORE: " << p << endl;
-	/*			for(size_t i = 0; i < theta.size(); i++) {
-					drawScaleMark(img_bgr, theta[i], x, y, r);
-				}
-
-				namedWindow(winName, WINDOW_AUTOSIZE);
-				imshow(winName, img_bgr);
-
-				waitKey(0);
-				destroyWindow(winName);
-
-				return maxPoint;*/
+				return r;
 			}
 		}
 	
-	return maxPoint;
+	return res;
 }
 
 bool getIntersection(Vec4i a, Vec4i b, Point &res) {
@@ -310,7 +306,7 @@ void calcCircle(Point &center, double &rad, Point a, Point b) {
 	}
 }
 
-void test_img(Mat img, Mat &img_bgr) {
+void findCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 	Mat img_bin;
 	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
 	thinning(img_bin);
@@ -326,7 +322,7 @@ void test_img(Mat img, Mat &img_bgr) {
 		Vec4i l = lines[i];
 
 		double size = (l[0] - l[2]) * (l[0] - l[2]) + (l[1] - l[3]) * (l[1] - l[3]);
-		line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255, 0, 255), 2, CV_AA);
+		//line(img_bgr, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255, 0, 255), 2, CV_AA);
 		
 		if(!isRes || resSize < size) {
 			isRes = true;
@@ -361,8 +357,8 @@ void test_img(Mat img, Mat &img_bgr) {
 				}
 			}
 	
-	for(size_t i = 0; i < ints.size(); i++)
-		circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);	 
+	/*for(size_t i = 0; i < ints.size(); i++)
+		circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);*/
 	
 	printf("NUMBER OF INTERSECTIONS FOUND: %lu\n", ints.size());
 
@@ -395,11 +391,11 @@ void test_img(Mat img, Mat &img_bgr) {
 
 		if(max_count > center_threshold) {
 			circle(img_bgr, centerMax, range, Scalar(255, 255, 0), 3, CV_AA);
+			center = centerMax;
+			center_range = range;
 			return;	
 		}
 	}
-
-	//line(img_bgr, Point(res[0], res[1]), Point(res[2], res[3]), Scalar(0, 255, 255), 3, CV_AA);
 }
 
 int main(int argc, char** argv) {
@@ -417,13 +413,17 @@ int main(int argc, char** argv) {
 	resize(img_tmp, img, size, 0, 0, INTER_LANCZOS4);
 	//img_tmp.copyTo(img);
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
-
+	
+	Point center;
+	int center_range;
+	findCenter(img, img_bgr, center, center_range);
 	vector<double> thetas;
-	//Vec3i center = findCenter(img, thetas);
-	//circle(img_bgr, Point(center[0], center[1]), center[2], Scalar(0, 0, 255), 3, CV_AA);	 
-
-	test_img(img, img_bgr);
-	//findNeedle(img, img_bgr, cx, cy, cr); 
+	double perimeter = findPerimeter(img, thetas, center, center_range);
+	circle(img_bgr, center, perimeter, Scalar(0, 255, 255), 1, CV_AA);	 
+	findNeedle(img, img_bgr, center, center_range); 
+	for(size_t i = 0; i < thetas.size(); i++) {
+		drawScaleMark(img_bgr, thetas[i], center.x, center.y, perimeter);
+	}
 
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img_bgr);
