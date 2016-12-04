@@ -107,16 +107,20 @@ void precalc(Mat& src, Mat &dst, float cx, float cy, float cr) {
 	//erode(dst, dst, element);
 }
 
-bool isScaleMark(const vector<Point>& contour, float imgY) {
+bool isScaleMark(const vector<Point>& contour, float imgY, float limY) {
 	float minX, maxX;
+	double minY = contour[0].x, maxY = contour[0].x;
 	bool flagX = true, flagY = true;
 
-	float thresY = imgY * (9.5 / 10); 
+	float thresY = imgY  - limY * 0.05;
 
+	//cout << "imgY: " << imgY << " thresY: " << thresY << " maxY: " << limY << endl;
 	//cout << "########### START CONTOUR #############" << endl;
 	for(size_t i = 0; i < contour.size(); i++) {
 		//cout << contour[i] << endl;
-		if(contour[i].x > thresY) {
+		minY = min(minY, (double)contour[i].x);
+		maxY = max(maxY, (double)contour[i].x);
+		if(contour[i].x >= thresY && contour[i].x <= imgY) {
 			if(flagX || contour[i].y < minX) {
 				minX = contour[i].y;
 				flagX = false;
@@ -128,6 +132,8 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 		}
 	}	
 
+	if(minY > thresY || maxY < imgY)
+		return false;
 	//cout << "########### END CONTOUR[" << (!(flagX || flagY) && (maxX - minX < 10)) << "] #############" << endl;
 	if(flagX || flagY)
 		return false;
@@ -135,12 +141,12 @@ bool isScaleMark(const vector<Point>& contour, float imgY) {
 	return maxX - minX < 10;
 }
 
-double getPolarScaleMark(Mat& im, const vector<Point> & contour, int cx, int cy, int cr) {
+double getPolarScaleMark(Mat& im, const vector<Point> & contour, int xMax) {
 	float avgY = 0;
 	int numY = 0;
 
 	for(size_t i = 0; i < contour.size(); i++)
-		if(contour[i].x > im.cols * 0.9) {
+		if(contour[i].x > xMax - im.cols * 0.1 && contour[i].x <= xMax) {
 			numY++;
 			avgY += contour[i].y;
 		}
@@ -241,46 +247,78 @@ double getScore(vector<double> &thetas) {
 	return lSub;
 }
 
+double calcR(double big_range, double small_range, double min_lim, double cols) {
+	double temp = small_range - min_lim / 2;	
+	return big_range * (temp / cols);
+}
+
 double findPerimeter(Mat img, vector<double> &theta, Point center, int center_range) {
 	Mat img_pro, img_bin, img_bgr;
 	double maxPoint;
 	bool isMax = false;
 	vector<double> tempt;
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
-	double res;
+	double res = -1;
 	double max_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 2;
 	double min_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 0.1;
-
+	double big_rate = (max_range - min_range) / 10;
+	double min_lim = 0.05 * img.cols;
+	Mat tempIm;
+	double bigTemp;
+	double smallTemp;
 	
 	for(int i = 0; i < center_range; i++)
 		for(double j = 0; j < 2 * CV_PI; j += CV_PI / 180) {
 			double x = i * cos(j) + center.x;
 			double y = j * sin(j) + center.y;
-			for(int r = min_range; r < max_range; r+=5) {
-				r = 238;
-				cout << "#### Trying (" << x << ", " << y << ", " << r << ") #########" << endl;
-				precalc(img, img_pro, x, y, r);
-				img_pro.copyTo(img_bin);
 
+			for(double big_range = min_range; big_range <= max_range; big_range += big_rate) {
+				precalc(img, img_pro, x, y, big_range);
+				img_pro.copyTo(img_bin);
 				vector<vector<Point> > contours;
-				tempt.clear();
 				vector<Vec4i> hie;
 				findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
-				for(size_t i = 0; i < contours.size(); i++)
-					if(isScaleMark(contours[i], img_bin.cols)) {
-						tempt.push_back(getPolarScaleMark(img_bin, contours[i], x, y, r));
-					}
 
-				double p = getScore(tempt);
-				if(!isMax || p > maxPoint) {
-					maxPoint = p;
-					theta = tempt;
-					res = r;
+				for(int small_range = min_lim; small_range <= img_bin.cols; small_range++)  {
+					tempt.clear();
+					double r = calcR(big_range, small_range, min_lim, img.cols);
+
+					for(size_t t = 0; t < contours.size(); t++)
+						if(isScaleMark(contours[t], small_range, img.cols)) {
+							tempt.push_back(getPolarScaleMark(img_bin, contours[t], small_range));
+						}
+
+					double p = getScore(tempt);
+					if(!isMax || p > maxPoint) {
+						cout << "#### Trying (" << x << ", " << y << ", " << r << ", " << big_range << ", "  << small_range << ") #########" << endl;					
+						img_bin.copyTo(tempIm);		
+						isMax = true;
+						maxPoint = p;
+						theta = tempt;
+						bigTemp = big_range;
+						smallTemp = small_range;
+						res = r;
+						cout << "SCORE: " << p << " MAX: " << maxPoint << endl;
+					}
+				}
+			}
+
+			vector<vector<Point> > contours;
+			vector<Vec4i> hie;
+			cout << "DEBUG#########################################################" << endl;
+			findContours(tempIm, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+			for(size_t t = 0; t < contours.size(); t++)
+				if(isScaleMark(contours[t], smallTemp, img.cols)) {
+					drawContours(tempIm, contours, t, Scalar(255, 0, 0), 2, 8, hie, 0, Point());
 				}
 
-				cout << "SCORE: " << p << endl;
-				return r;
-			}
+			namedWindow(winName, WINDOW_AUTOSIZE);
+			imshow(winName, tempIm);
+
+			while(1)
+				waitKey(0);
+			
+			return res;
 		}
 	
 	return res;
@@ -306,14 +344,32 @@ void calcCircle(Point &center, double &rad, Point a, Point b) {
 	}
 }
 
+void precalc2(Mat src, Mat &dst) {
+	equalizeHist(src, dst);
+	medianBlur(dst, dst, 7);
+
+	adaptiveThreshold(src, dst, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 41, 15);
+	//Sobel(dst, dst, dst.type(), 0, 1, 9, 1, 0, BORDER_DEFAULT);
+	//Canny(dst, dst, 50, 150, 3);
+
+	/*GaussianBlur(src, dst, Size(3, 3), 0, 0);
+	adaptiveThreshold(dst, dst, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 51, 15);
+	//threshold(dst, dst, 0, 255, CV_THRESH_BINARY_INV | CV_THRESH_OTSU);*/
+	Mat element = getStructuringElement(MORPH_RECT, Size(7, 7), Point(3, 3));
+	morphologyEx(dst, dst, MORPH_CLOSE, element);
+	//Mat element2 = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
+	//morphologyEx(dst, dst, MORPH_OPEN, element2);
+	
+	thinning(dst);
+
+}
+
 void findCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 	Mat img_bin;
-	adaptiveThreshold(img, img_bin, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, 51, 15);
-	thinning(img_bin);
+	precalc2(img, img_bin);
 	cvtColor(img_bin, img_bgr, COLOR_GRAY2BGR);
-
 	vector<Vec4i> lines;
-	HoughLinesP(img_bin, lines, 1, CV_PI/180, 30, 5, 10);
+	HoughLinesP(img_bin, lines, 1, CV_PI/180, 30, 5, 3);
 	Vec4i res;
 	double resSize;
 	bool isRes = false;
@@ -357,8 +413,8 @@ void findCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 				}
 			}
 	
-	/*for(size_t i = 0; i < ints.size(); i++)
-		circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);*/
+	//for(size_t i = 0; i < ints.size(); i++)
+	//	circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);
 	
 	printf("NUMBER OF INTERSECTIONS FOUND: %lu\n", ints.size());
 
@@ -386,7 +442,7 @@ void findCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 					cout << "Range: " << range << "\tCENT: " << Point(x, y) << "\t= count( " << count << " )" << endl;
 					max_count = count;
 					centerMax = Point(x, y);
-				}
+				} 
 			}
 
 		if(max_count > center_threshold) {
@@ -428,7 +484,8 @@ int main(int argc, char** argv) {
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img_bgr);
 
-	waitKey(0);
+	while(1)
+		waitKey(0);
 	destroyWindow(winName);
 
 	return 0;
