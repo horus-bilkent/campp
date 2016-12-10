@@ -9,6 +9,14 @@ using namespace std;
 char winName[] = "DEBUG";
 const float thr = 0.25;
 
+void showImageAndExit(const Mat &img) {
+	namedWindow(winName, WINDOW_AUTOSIZE);
+	imshow(winName, img);
+
+	waitKey(0);
+	exit(0);
+}
+
 /**
  * Perform one thinning iteration.
  * Normally you wouldn't call this function directly from your code.
@@ -102,6 +110,7 @@ void precalc(Mat& src, Mat &dst, float cx, float cy, float cr) {
 	Sobel(dst, dst, dst.type(), 0, 1, 9, 1, 0, BORDER_DEFAULT);
 	//Canny(dst, dst, 50, 150, 3);
 	thinning(dst);
+	//showImageAndExit(dst);
 
 	//dilate(dst, dst, element);
 	//erode(dst, dst, element);
@@ -277,7 +286,7 @@ double findPerimeter(Mat img, vector<double> &theta, Point center, int center_ra
 				img_pro.copyTo(img_bin);
 				vector<vector<Point> > contours;
 				vector<Vec4i> hie;
-				findContours(img_bin, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+				findContours(img_bin.clone(), contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
 
 				for(int small_range = min_lim; small_range <= img_bin.cols; small_range++)  {
 					tempt.clear();
@@ -303,21 +312,16 @@ double findPerimeter(Mat img, vector<double> &theta, Point center, int center_ra
 				}
 			}
 
-			vector<vector<Point> > contours;
+			/*vector<vector<Point> > contours;
 			vector<Vec4i> hie;
 			cout << "DEBUG#########################################################" << endl;
-			findContours(tempIm, contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+			findContours(tempIm.clone(), contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
 			for(size_t t = 0; t < contours.size(); t++)
 				if(isScaleMark(contours[t], smallTemp, img.cols)) {
 					drawContours(tempIm, contours, t, Scalar(255, 0, 0), 2, 8, hie, 0, Point());
 				}
+			showImageAndExit(tempIm);*/
 
-			namedWindow(winName, WINDOW_AUTOSIZE);
-			imshow(winName, tempIm);
-
-			while(1)
-				waitKey(0);
-			
 			return res;
 		}
 	
