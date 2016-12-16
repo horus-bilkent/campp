@@ -28,17 +28,16 @@ bool isScaleMark(const vector<Point>& contour, float imgY, float limY) {
 		}
 	}
 
+    //cout << "############# END IMGY-THRESY(" << Point(imgY, thresY) << ") MINX-MAXX(" << Point(maxY, minY) << ")" << endl;
 	if(minY > imgY || maxY < thresY)
 		return false;
-    //cout << "IMGY-THRESY(" << Point(imgY, thresY) << ") MINX-MAXX(" << Point(maxY, minY) << ")" << endl;
-    if(maxY - minY < 0.5 * (imgY - thresY))
+    if(maxY - minY < 0.3 * (imgY - thresY))
         return false;
 	//cout << "########### END CONTOUR[" << (!(flagX || flagY) && (maxX - minX < 10)) << "] #############" << endl;
 	if(flagX || flagY)
 		return false;
 
     return true;
-	return maxX - minX < 15;
 }
 
 double getScalemarkAngle(const Mat& im, const vector<Point> & contour, int xMax) {
@@ -165,7 +164,7 @@ double locateScalemarks(Mat img, vector<double> &theta, Point center, int center
 	double max_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 2;
 	double min_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 0.1;
 	double big_rate = (max_range - min_range) / 10;
-	double min_lim = 0.05 * img.cols;
+	double min_lim = 0.06 * img.cols;
 	Mat tempIm;
 	double bigTemp;
 	double smallTemp;
@@ -176,7 +175,7 @@ double locateScalemarks(Mat img, vector<double> &theta, Point center, int center
 			double y = j * sin(j) + center.y;
             cout << "LOCATING " << Point(x, y) << endl;
 
-			for(double big_range = min_range; big_range <= max_range; big_range += big_rate) {
+			for(double big_range = min_range; big_range <= max_range; big_range += big_rate / 3) {
 				polarTranform(img, img_pro, x, y, big_range);
 				img_pro.copyTo(img_bin);
 				vector<vector<Point> > contours;

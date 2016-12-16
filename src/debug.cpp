@@ -67,13 +67,14 @@ void start_debug() {
     cout << "DEBUG STARTED: CENTER(" << mcenter.x << ", " << mcenter.y << ")" << " - PERIMETER: " << perimeter_slider << endl;
     Mat img_pro;
 	double needleAngle = locateNeedle(img, img_bgr, mcenter, 40);
+    cout << "MCENTER: " << mcenter << endl;
     polarTranform(img, img_pro, mcenter.x, mcenter.y, perimeter_slider);
 	vector<vector<Point> > contours;
 	vector<Vec4i> hie;
     vector<double> tempt;
 	cvtColor(img_pro, img_tmp, COLOR_GRAY2BGR);
     double slid_max = small_range_slider;
-    line(img_tmp, Point(small_range_slider - img.cols * 0.05, 0), Point(small_range_slider - img.cols * 0.05, img.rows), Scalar(0, 255, 0), 2);
+    line(img_tmp, Point(small_range_slider - img.cols * 0.06, 0), Point(small_range_slider - img.cols * 0.06, img.rows), Scalar(0, 255, 0), 2);
     line(img_tmp, Point(small_range_slider, 0), Point(small_range_slider, img.rows), Scalar(0, 255, 0), 2);
 	findContours(img_pro.clone(), contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
     double p = scoreScalemarkModel(img_pro, contours, tempt, small_range_slider, img.cols * 0.05);
@@ -130,7 +131,7 @@ void workflow() {
 	double needleAngle = locateNeedle(img, img_bgr, center, center_range);
 	vector<double> thetas;
 	double perimeter = locateScalemarks(img, thetas, center, center_range);
-	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
+	//cvtColor(img, img_bgr, COLOR_GRAY2BGR);
     drawScaleMark(img_bgr, needleAngle, center.x, center.y, perimeter, true);
 	circle(img_bgr, center, perimeter, Scalar(0, 255, 255), 1, CV_AA);
 	for(size_t i = 0; i < thetas.size(); i++) {
