@@ -111,7 +111,7 @@ bool scoreIt(int a, int b, const vector<double> &thetas) {
         int after = i % thetas.size();
         int prev = after - 1 + (after == 0) * thetas.size();
         double temp = angleDiff(thetas[after], thetas[prev]);
-        if(temp > diff * 1.5)
+        if(temp > diff * 1.7)
             return false;
     }
 
@@ -165,7 +165,7 @@ double locateScalemarks(Mat img, vector<double> &theta, Point center, int center
 	double max_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 2;
 	double min_range = sqrt(img.cols * img.cols + img.rows * img.rows) * 0.1;
 	double big_rate = (max_range - min_range) / 10;
-	double min_lim = 0.03 * img.cols;
+	double min_lim = 0.05 * img.cols;
 	Mat tempIm;
 	double bigTemp;
 	double smallTemp;

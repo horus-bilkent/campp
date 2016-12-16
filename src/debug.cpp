@@ -38,7 +38,6 @@ void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr, bool 
 	double rho = cr;
 	double a = cos(theta), b = sin(theta);
 	double x0 = a * rho, y0 = b * rho;
-	cout << "THETA: " << (theta * 360) / (2 * CV_PI) << endl;
 	Point pt1, pt2;
     pt1.x = cvRound(x0 + 10*(a) + cx);
     pt1.y = cvRound(y0 + 10*(b) + cy);
@@ -67,13 +66,14 @@ void drawShit() {
 void start_debug() {
     cout << "DEBUG STARTED: CENTER(" << mcenter.x << ", " << mcenter.y << ")" << " - PERIMETER: " << perimeter_slider << endl;
     Mat img_pro;
+	double needleAngle = locateNeedle(img, img_bgr, mcenter, 40);
     polarTranform(img, img_pro, mcenter.x, mcenter.y, perimeter_slider);
 	vector<vector<Point> > contours;
 	vector<Vec4i> hie;
     vector<double> tempt;
 	cvtColor(img_pro, img_tmp, COLOR_GRAY2BGR);
     double slid_max = small_range_slider;
-    line(img_tmp, Point(small_range_slider - img.cols * 0.03, 0), Point(small_range_slider - img.cols * 0.03, img.rows), Scalar(0, 255, 0), 2);
+    line(img_tmp, Point(small_range_slider - img.cols * 0.05, 0), Point(small_range_slider - img.cols * 0.05, img.rows), Scalar(0, 255, 0), 2);
     line(img_tmp, Point(small_range_slider, 0), Point(small_range_slider, img.rows), Scalar(0, 255, 0), 2);
 	findContours(img_pro.clone(), contours, hie, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
     double p = scoreScalemarkModel(img_pro, contours, tempt, small_range_slider, img.cols * 0.05);
@@ -82,6 +82,7 @@ void start_debug() {
     for(size_t i = 0; i < tempt.size(); i++)
         cout << tempt[i] << " ";
     cout << endl;
+    drawScaleMark(img_bgr, needleAngle, mcenter.x, mcenter.y, r, true);
     for(size_t t = 0; t < contours.size(); t++)
 	   if(isScaleMark(contours[t], small_range_slider, img.cols)) {
            drawContours(img_tmp, contours, t, Scalar(255, 0, 255), 1, 8, hie, 0, Point());
@@ -125,17 +126,16 @@ void createDebugWin() {
 
 void workflow() {
     Point center;
-	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
 	locateCenter(img, img_bgr, center, center_range);
+	double needleAngle = locateNeedle(img, img_bgr, center, center_range);
 	vector<double> thetas;
 	double perimeter = locateScalemarks(img, thetas, center, center_range);
-	double needleAngle = locateNeedle(img, img_bgr, center, center_range);
+	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
     drawScaleMark(img_bgr, needleAngle, center.x, center.y, perimeter, true);
-    drawScaleMark(img_bgr, CV_PI / 2, center.x, center.y, perimeter, true);
 	circle(img_bgr, center, perimeter, Scalar(0, 255, 255), 1, CV_AA);
-	/*for(size_t i = 0; i < thetas.size(); i++) {
+	for(size_t i = 0; i < thetas.size(); i++) {
 		drawScaleMark(img_bgr, thetas[i], center.x, center.y, perimeter, false);
-	}*/
+	}
 }
 
 int main(int argc, char** argv) {
@@ -162,9 +162,9 @@ int main(int argc, char** argv) {
     img_bgr.copyTo(img_bgr2);
 
     //skeletonTransform(img, img_bgr);
-    workflow();
+    //workflow();
 	namedWindow(winName, WINDOW_AUTOSIZE);
-    //createDebugWin();
+    createDebugWin();
 	imshow(winName, img_bgr);
 
 	while(1)

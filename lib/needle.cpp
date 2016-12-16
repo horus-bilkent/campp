@@ -4,9 +4,10 @@
 #include "geometry.hpp"
 #include "transform.hpp"
 #include <cmath>
+#include <iostream>
 using namespace std;
 
-double locateNeedle(Mat img, Mat &img_bgr, Point center, double cr) {
+double locateNeedle(Mat img, Mat &img_bgr, Point &center, double cr) {
 	double cx = center.x;
 	double cy = center.y;
 	Mat img_bin;
@@ -35,7 +36,12 @@ double locateNeedle(Mat img, Mat &img_bgr, Point center, double cr) {
 		}
 	}
 
-	line(img_bgr, Point(cx, cy), Point(cx - res[2] + res[0], cy - res[3] + res[1]), Scalar(0, 255, 255), 3, CV_AA);
+    // TODO(omer): respect closer to center here
+    double angle = atan2(res[1] - res[3], res[0] - res[2]);
+    center = closestPointLine(Point2f(res[0], res[1]), Point2f(res[2], res[3]), center);
+    cout << "NEW CENTER: " << center << endl;
+    //double length = sqrt((res[2] - res[0]) * (res[2] - res[0]) + (res[3] - res[1]) * (res[3] - res[1]));
+	line(img_bgr, Point(res[2], res[3]), Point(res[2] + cos(angle) * 200, res[3] + sin(angle) * 200), Scalar(0, 255, 255), 3, CV_AA);
 	circle(img_bgr, Point(cx, cy), cr, Scalar(0, 0, 255), 3, CV_AA);
-    return atan2(res[2] - res[0], res[3] - res[1]);
+    return angle;
 }

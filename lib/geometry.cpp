@@ -1,5 +1,10 @@
 #include "geometry.hpp"
 
+Point closestPointLine(Point2f l1, Point2f l2, Point2f a) {
+    double k = ((l2.y - l1.y) * (a.x - l1.x) - (l2.x - l1.x) * (a.y - l1.y)) / ((l2.y - l1.y) * (l2.y - l1.y) + (l2.x - l1.x) * (l2.x - l1.x));
+    return Point(a.x - k * (l2.y - l1.y), a.y + k * (l2.x - l1.x));
+}
+
 double angleDiff(double a, double b) {
     double res = a - b;
     if(a - b < 0)

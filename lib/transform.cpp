@@ -13,7 +13,7 @@ void polarTranform(Mat& src, Mat &dst, float cx, float cy, float cr) {
 	//Canny(dst, dst, 50, 150, 3);
 	//thinning(dst);
 	//Sobel(dst, dst, dst.type(), 0, 1, 9, 1, 0, BORDER_DEFAULT);
-	Mat element = getStructuringElement(MORPH_RECT, Size(21, 1));
+	Mat element = getStructuringElement(MORPH_RECT, Size(17, 1));
 	erode(dst, dst, element, Point(-1, -1));
 	dilate(dst, dst, element, Point(-1, -1));
 	//thinning(dst);
