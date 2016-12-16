@@ -1,5 +1,12 @@
 #include "geometry.hpp"
 
+double angleDiff(double a, double b) {
+    double res = a - b;
+    if(a - b < 0)
+        return res + CV_PI * 2;
+    return res;
+}
+
 bool lineCircleIntersect(Point2f a, Point2f b, Point2f center, double range) {
 	float dx = b.x - a.x;
 	float dy = b.y - a.y;

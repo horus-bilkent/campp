@@ -5,12 +5,24 @@
 #include <iostream>
 using namespace std;
 
+RNG rng(12356345);
+
 void locateCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 	Mat img_bin;
 	skeletonTransform(img, img_bin);
 	cvtColor(img_bin, img_bgr, COLOR_GRAY2BGR);
 	vector<Vec4i> lines;
-	HoughLinesP(img_bin, lines, 1, CV_PI/180, 30, 5, 3);
+
+    /*vector<vector<Point> > contours;
+	vector<Vec4i> hie;
+    vector<double> tempt;
+    findContours(img_bin.clone(), contours, hie, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
+    for(size_t i = 0; i < contours.size(); i++) {
+        Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+        drawContours(img_bgr, contours, i, color, 2, 8, hie, 0, Point());
+    }*/
+
+	HoughLinesP(img_bin, lines, 1, 1 * CV_PI/180, 30, 3, 3);
 	Vec4i res;
 	double resSize;
 	bool isRes = false;
@@ -54,8 +66,8 @@ void locateCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 				}
 			}
 
-	//for(size_t i = 0; i < ints.size(); i++)
-	//	circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);
+	// for(size_t i = 0; i < ints.size(); i++)
+	// 	circle(img_bgr, ints[i], 1, Scalar(0, 255, 0), 1, CV_AA);
 
 	printf("NUMBER OF INTERSECTIONS FOUND: %lu\n", ints.size());
 
@@ -65,17 +77,18 @@ void locateCenter(Mat img, Mat &img_bgr, Point &center, int &center_range) {
 	const int center_threshold = ints.size() * 0.1;
 	printf("MAX_RANGE: %.3f\n CENTER_THRESH: %d\n", max_range, center_threshold);
 	for(int range = range_scale; range < max_range; range += range_scale) {
-		int max_count = -1;
+		double max_count = -1;
 		Point centerMax;
 
 		for(int i = 0; i < img.cols / scale; i++)
-			for(int j = 0; j < img.rows / scale; j++) {
+			for(int j = 0; j < (img.rows * 2) / scale; j++) {
 				double x = i * scale;
 				double y = j * scale;
-				int count = 0;
+				double count = 0;
 				for(size_t t = 0; t < ints.size(); t++) {
 					double dist = (x - ints[t].x) * (x - ints[t].x) + (y - ints[t].y) * (y - ints[t].y);
-					count += (dist <= range * range);
+                    if(dist <= range * range)
+					    count += 2 - dist / (range * range);
 					//cout << "RANGE*RANGE: " << range * range << " DIST: " << dist << " cent: " << Point(x, y) << " CHECK: " << ints[t] << " = COUNT( " << count << ")" << endl;
 				}
 
