@@ -30,7 +30,8 @@ void showImageAndExit(const Mat &img) {
 	namedWindow(winName, WINDOW_AUTOSIZE);
 	imshow(winName, img);
 
-	waitKey(0);
+    while(1)
+	   waitKey(0);
 	exit(0);
 }
 
