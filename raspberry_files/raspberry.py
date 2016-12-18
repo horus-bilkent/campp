@@ -39,7 +39,7 @@ if __name__ == "__main__":
 		print 'Error in config file: ' + str(e)
 		
 	client = KafkaClient(hosts=broker_connect)
-	topic_appliance = client.topics[bytes(read_topic)]
+	topic_appliance = client.topics[bytes(appliance_topic)]
 	
 	if not os.path.isfile(write_initialization):
 		consumer = topic_appliance.get_simple_consumer()
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 			print 'Waiting for client initialization...'
 			if message_recv is not None:
 				begin_msg = json.loads(message_recv.value)
-				if 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin':
+				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin' and int(time.time()) <= begin_msg['timestamp'] + 50:
 					print 'Received, initialization command.'
 					transaction_id = begin_msg['transaction_id']
 
