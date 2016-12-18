@@ -24,6 +24,7 @@ def generate_message(appliance_id=None, msg_type=None, transaction_id=None, valu
 def read_config(config_path):
 	with open(config_path) as config_file:    
 		config = json.load(config_file)
+		return config
 		
 def get_time():
 	return str(int(time.time()))
