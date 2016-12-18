@@ -6,6 +6,7 @@ import sys
 import jsonpickle
 import os
 import subprocess
+import auxiliary
 
 from pykafka import KafkaClient, SslConfig
 
