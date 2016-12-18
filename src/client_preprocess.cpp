@@ -21,12 +21,12 @@ void writeOutput(const string& output_path, vector<double> thetas, Point center,
 	
 		ofstream outfile(output_path);
 		// first read center
-		outfile << center.x
-		outfile << "\n" 
-		outfile << center.y
-		outfile << "\n" 
-		outfile << center_range
-		outfile << "\n" 
+		outfile << center.x;
+		outfile << "\n";
+		outfile << center.y;
+		outfile << "\n" ;
+		outfile << center_range;
+		outfile << "\n";
 		
 		for (auto theta : thetes) {
 			outfile << theta;
