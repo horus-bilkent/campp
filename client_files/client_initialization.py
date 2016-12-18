@@ -16,7 +16,7 @@ def write_jpg(jpg_bytes, to_file):
 		outfile.write(jsonpickle.decode(jpg_bytes))
 	
 if __name__ == "__main__":	
-	if sys.argc == 1:
+	if len(sys.argv) == 1:
 		config = auxiliary.read_config(CONFIG_FILE)
 	else:
 		config = auxiliary.read_config(sys.argv[1])

@@ -20,7 +20,7 @@ def capture_image(image_path, image_res):
 CONFIG_FILE = './raspberry_config.json'
 
 if __name__ == "__main__":
-	if sys.argc == 1:
+	if len(sys.argv) == 1:
 		config = auxiliary.read_config(CONFIG_FILE)
 	else:
 		config = auxiliary.read_config(sys.argv[1])

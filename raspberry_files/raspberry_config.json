@@ -4,7 +4,7 @@
 	"stream_topic" : "test",
 	"appliance_topic" : "appliance_1",
 	"write_initialization" : "./initialization_config",
-	"find_needle" : "./cneedle",
+	"find_needle" : "../build/bin/cneedle",
 	"read_granularity" : 10,
 	"capture_resolution" : "(1024, 768)",
 	"ssl_ca_cert": "./encrypt/horus_ca",
