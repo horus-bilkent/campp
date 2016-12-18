@@ -15,7 +15,8 @@
 using namespace cv;
 using namespace std;
 
-using namespace std;
+const string winName = "APPLIANCE";
+
 
 int readInput(const string& input_path, vector<double>& thetas, Point& center, double& center_range) {
 	
@@ -66,15 +67,17 @@ int main(int argc, char** argv) {
 		cout << "Error!" << endl;
 		return -1;
 	}
-	
+
 	// omer add your code
 	
 	// hersey bitince, python -> stdin -> readNeedlevalue -> stdout -> python -> kafka (loop)
 
 	string line;
 	while (std::cin >> line) {
+		Mat img = imread(line, CV_LOAD_IMAGE_GRAYSCALE);
+		namedWindow(winName, WINDOW_AUTOSIZE);
+		imshow(winName, img);
 		// double needle_value = readNeedleValue();  // ya da int hangisi olursa
-		
 		// to try
 		double needle_value = center_range;
 		std::cout << needle_value << std::endl;

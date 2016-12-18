@@ -103,6 +103,7 @@ void mouseCB(int event, int x, int y, int flags, void* userdata) {
         drawShit();
     }
 }
+  
 
 void perimeter_on(int, void *) {
     drawShit();
@@ -138,6 +139,8 @@ void workflow() {
 	for(size_t i = 0; i < thetas.size(); i++) {
 		drawScaleMark(img_bgr, thetas[i], center.x, center.y, perimeter, false);
 	}
+	
+	sort(thetas.begin(), thetas.end());
 }
 
 int main(int argc, char** argv) {
