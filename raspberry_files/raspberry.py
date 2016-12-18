@@ -11,13 +11,14 @@ import auxiliary
 from pykafka import KafkaClient
 
 def capture_image(image_path, image_res):
-		camera = PiCamera()
+		camera = picamera.PiCamera()
 		camera.resolution = image_res
-		sleep(2)
+		time.sleep(2)
 		camera.capture(image_path)
 
 
 CONFIG_FILE = './raspberry_config.json'
+MSG_TIMEOUT = 30
 
 if __name__ == "__main__":
 	if len(sys.argv) == 1:
@@ -47,17 +48,19 @@ if __name__ == "__main__":
 			print 'Waiting for client initialization...'
 			if message_recv is not None:
 				begin_msg = json.loads(message_recv.value)
-				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin' and int(time.time()) <= begin_msg['timestamp'] + 50:
+				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin' and int(time.time()) <= int(begin_msg['timestamp']) + MSG_TIMEOUT:
 					print 'Received, initialization command.'
 					transaction_id = begin_msg['transaction_id']
+					break
 
 		# capture image
-		image_path = './image_ ' + auxiliary.get_time() + '.jpg'
+		print 'Capturing the initialization image...'
+		image_path = './image_' + auxiliary.get_time() + '.jpg'
 		capture_image(image_path, resolution)
 		with open(image_path, 'rb') as image_file:
 			image_pickled = jsonpickle.encode(bytearray(image_file.read()))
 		
-		with topic_initialization.get_sync_producer(max_request_size=50000000) as producer:
+		with topic_appliance.get_sync_producer(max_request_size=50000000) as producer:
 			# generate the json message
 			print 'Sending'
 			image_message = auxiliary.generate_message(appliance_id=appliance_id, msg_type='initialization_image', transaction_id=transaction_id, value=image_pickled)
@@ -65,7 +68,7 @@ if __name__ == "__main__":
 			# os.remove(image)
 
 		# read the initialization parameters after client initialization
-		consumer = topic_read.get_simple_consumer()
+		consumer = topic_appliance.get_simple_consumer()
 		for message_recv in consumer:
 			if message_recv is not None:
 				end_msg = json.loads(message_recv.value)

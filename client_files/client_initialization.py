@@ -58,10 +58,10 @@ if __name__ == "__main__":
 				output_file = './preprocess_output_' + str(int(time.time()))
 				
 				write_jpg(image_bytes, image_path)
-				ret_val = 0
-				# ret_val = subprocess.call([preprocess, image_name, output_file])
+				#ret_val = 0
+				ret_val = subprocess.call([preprocess, image_path, output_file])
 				
-				if ret_val != 0:
+				if ret_val != 0 or not os.path.isfile(output_file):
 					print 'Initialization failed, cannot execute preprocessing'
 					exit(1)
 												
