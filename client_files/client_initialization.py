@@ -73,7 +73,7 @@ if __name__ == "__main__":
 				break
 				
 	# produce the initialization end message contains the configuration
-	with topic_to_client.get_sync_producer() as producer:
+	with topic_appliance.get_sync_producer() as producer:
 		print 'Sending:'
 		end_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_end', value=output)
 		producer.produce(end_msg)

@@ -43,7 +43,7 @@ if __name__ == "__main__":
 	topic_appliance = client.topics[bytes(appliance_topic)]
 	
 	if not os.path.isfile(write_initialization):
-		consumer = topic_appliance.get_simple_consumer()
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
 		for message_recv in consumer:
 			print 'Waiting for client initialization...'
 			if message_recv is not None:
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 			# os.remove(image)
 
 		# read the initialization parameters after client initialization
-		consumer = topic_appliance.get_simple_consumer()
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
 		for message_recv in consumer:
 			if message_recv is not None:
 				end_msg = json.loads(message_recv.value)
