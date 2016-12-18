@@ -28,7 +28,7 @@ void writeOutput(const string& output_path, vector<double> thetas, Point center,
 		outfile << center_range;
 		outfile << "\n";
 		
-		for (auto theta : thetes) {
+		for (auto theta : thetas) {
 			outfile << theta;
 			outfile << "\n";
 		}	
