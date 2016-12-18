@@ -9,11 +9,33 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <raspicam/raspicam_cv.h>
+
 using namespace cv;
 using namespace std;
 
 char winName[] = "DEBUG";
 char winName2[] = "DEBUG2";
+
+void initCamera(raspicam::RaspiCam_Cv& Camera) {
+	    Camera.set( CV_CAP_PROP_FORMAT, CV_8UC1 );
+		if (!Camera.open()) {
+			cerr<<"Error opening the camera"<<endl;return;
+		}
+}
+
+
+void destructCamera(raspicam::RaspiCam_Cv& Camera) {
+	    Camera.release();
+}
+
+Mat captureImage(raspicam::RaspiCam_Cv& Camera) {
+	  cv::Mat image;
+	  Camera.grab();
+      Camera.retrieve(image);
+	  return image;
+}
+
 
 void showImageAndExit(const Mat &img) {
 	namedWindow(winName, WINDOW_AUTOSIZE);
@@ -83,21 +105,17 @@ Mat getTemplate(const Mat &img) {
 }
 
 int main(int argc, char** argv) {
-    VideoCapture cap(argv[1]);
+    VideoCapture cap(0);
+    if (!cap.isOpened()) {
+		std::cout << "cam not open" << std::endl;
+		return 0;
+	}
     Mat frame, img1, img2, img_bgr;
     bool flag = false;
 	namedWindow(winName, WINDOW_AUTOSIZE);
     while(1) {
         cap >> frame;
-        frame.copyTo(img1);
-        if(flag) {
-            diffTransform(img1, img2, img_bgr);
-            imshow(winName, img_bgr);
-            while(1)
-                waitKey(0);
-        }
-        flag = true;
-        frame.copyTo(img2);
+            imshow(winName, frame);
         waitKey(20);
     }
 

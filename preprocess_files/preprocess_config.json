@@ -1,0 +1,9 @@
+{
+	"broker_connect" : "35.156.71.127:9092",
+	"initialization_topic" : "initialization",
+	"preprocess" : "./preprocess",
+	"ssl_ca_cert": "./encrypt/horus_ca",
+	"ssl_client_private_key_file": "./encrypt/client.key",
+	"ssl_client_cert" : "./encrypt/client.pem",
+	"ssl_key_password" : "1234321"
+}

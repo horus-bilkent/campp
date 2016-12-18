@@ -41,7 +41,7 @@ double locateNeedle(Mat img, Mat &img_bgr, Point &center, double cr) {
     //center = closestPointLine(Point2f(res[0], res[1]), Point2f(res[2], res[3]), center);
     cout << "NEW CENTER: " << center << endl;
     //double length = sqrt((res[2] - res[0]) * (res[2] - res[0]) + (res[3] - res[1]) * (res[3] - res[1]));
-	line(img_bgr, Point(res[2], res[3]), Point(res[2] + cos(angle) * 200, res[3] + sin(angle) * 200), Scalar(0, 255, 255), 3, CV_AA);
-	circle(img_bgr, Point(cx, cy), cr, Scalar(0, 0, 255), 3, CV_AA);
+	//line(img_bgr, Point(res[2], res[3]), Point(res[2] + cos(angle) * 200, res[3] + sin(angle) * 200), Scalar(0, 255, 255), 3, CV_AA);
+	//circle(img_bgr, Point(cx, cy), cr, Scalar(0, 0, 255), 3, CV_AA);
     return angle;
 }
