@@ -1,8 +1,8 @@
 {
 	"broker_connect" : "35.156.71.127:9092",
-	"preprocess" : "./preprocess",
+	"preprocess" : "../build/bin/cpreprocess",
 	"ssl_ca_cert": "./encrypt/horus_ca",
-	"appliance_topic" "appliance_1",
+	"appliance_topic" : "appliance_1",
 	"appliance_id" : "1",
 	"ssl_client_private_key_file": "./encrypt/client.key",
 	"ssl_client_cert" : "./encrypt/client.pem",

@@ -16,10 +16,10 @@ def write_jpg(jpg_bytes, to_file):
 		outfile.write(jsonpickle.decode(jpg_bytes))
 	
 if __name__ == "__main__":	
-	if argc == 1:
+	if sys.argc == 1:
 		config = auxiliary.read_config(CONFIG_FILE)
 	else:
-		config = auxiliary.read_config(argv[1])
+		config = auxiliary.read_config(sys.argv[1])
 			
 	try:
 		
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 	transaction_id=random.randint(1, 2^30)
 	# inititialize the sequence
 	with topic_appliance.get_sync_producer() as producer:
-			begin_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, 'initialization_begin')
+			begin_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_begin')
 			producer.produce(begin_msg)
 			
 	# consume the message with image
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	# produce the initialization end message contains the configuration
 	with topic_to_client.get_sync_producer() as producer:
 		print 'Sending:'
-		end_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, 'initialization_end', value=output)
+		end_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_end', value=output)
 		producer.produce(end_msg)
 
 	print 'Appliance initialization successful.'
