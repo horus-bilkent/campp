@@ -24,6 +24,7 @@ int rec_width = 0;
 int rec_height = 0;
 bool request_new = true;
 bool cropped = false;
+bool center_assigned = false;
 Point center, rec_center;
 
 vector<int> roi(4);
@@ -82,6 +83,7 @@ void preprocess(int, void *) {
 			imshow(winName, img);
 	}
 	if (preprocess_slider == 2) {
+		center_assigned = true;
 		img.copyTo(img_bgr);
 		cout << "PREPROCESS STARTED: CENTER(" << center.x << ", " << center.y << ")"  << endl;
 		cout << "Locate Needle" << endl;
@@ -99,7 +101,6 @@ void preprocess(int, void *) {
 	if (preprocess_slider == 3) {
 		cout << "Accepting the image." << endl;
 		request_new = false;
-		exit(0);
 	}
 	
 	imshow(winName, img_bgr);
@@ -115,14 +116,19 @@ void drawImage(int event, void *) {
 		roi.at(2) = rec_width;
 		roi.at(3) = rec_height;	
 	}
-	circle(img_bgr, center, 5, Scalar(212, 35, 78), 5, CV_AA);
+	
+	if (center_assigned == false) {
+		circle(img_bgr, center, 5, Scalar(212, 35, 78), 5, CV_AA);
+	}
 	imshow(winName, img_bgr);    
 }
 
 void mouseCB(int event, int x, int y, int flags, void* userdata) {
     if(flags & EVENT_FLAG_LBUTTON) {
+		if (center_assigned == false) {
         center = Point(x, y);
         drawImage(0,0);
+		}
     } else if (flags & EVENT_FLAG_RBUTTON)  {
 		if (cropped == false) {
 			rec_center = Point(x, y);
@@ -160,8 +166,8 @@ int main(int argc, char** argv) {
 	
 	if (!request_new) {
 		writeOutput(config_file);
-		return 0;
+		exit(0);
 	} else {
-		return 1;
+		exit(1);
 	}
 }

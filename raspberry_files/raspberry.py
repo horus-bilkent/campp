@@ -88,19 +88,14 @@ if __name__ == "__main__":
 	
 	# after initialization call findNeedle continously
 	with topic_stream.get_sync_producer() as producer:
-			child = subprocess.Popen([find_needle, write_initialization], shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE)		
-			while True:
-				image_path = 'image_' + auxiliary.get_time() + '.jpg'
-				capture_image(image_path, resolution)
-				print 'Processing: ' + image_path
-				child.stdin.write(image_path + "\n")
-				child.stdin.flush()
-				line = child.stdout.readline()
-				child.stdout.flush()
-				value = float(line)
-				message = auxiliary.generate_message(appliance_id=appliance_id, value=value)
-				print 'Sending...'
-				print message
-				producer.produce(message)
-				os.remove(image_path)
-				time.sleep(granularity)
+		while True:
+			image_path = 'image_' + auxiliary.get_time() + '.jpg'
+			capture_image(image_path, resolution)
+			print 'Processing: ' + image_path
+			value = subprocess.call([find_needle, write_initialization, image_path])		
+			message = auxiliary.generate_message(appliance_id=appliance_id, value=value)
+			print 'Sending...'
+			print message
+			producer.produce(message)
+			os.remove(image_path)
+			time.sleep(granularity)
