@@ -92,8 +92,9 @@ if __name__ == "__main__":
 			image_path = 'image_' + auxiliary.get_time() + '.jpg'
 			capture_image(image_path, resolution)
 			print 'Processing: ' + image_path
-			value = subprocess.call([find_needle, write_initialization, image_path])		
-			message = auxiliary.generate_message(appliance_id=appliance_id, value=value)
+			v = subprocess.call([find_needle, image_path, write_initialization, 'D'])
+			print 'Value: ' + str(v)		
+			message = auxiliary.generate_message(appliance_id=appliance_id, value=str(v))
 			print 'Sending...'
 			print message
 			producer.produce(message)

@@ -8,7 +8,7 @@ def generate_message(appliance_id=None, msg_type=None, transaction_id=None, valu
 	if msg_type:
 		message['type'] = msg_type
 		
-	if value:
+	if value is not None:
 		message['value'] = value
 	
 	if transaction_id:
