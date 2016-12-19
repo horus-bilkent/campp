@@ -18,7 +18,7 @@ using namespace std;
 const string winName = "APPLIANCE";
 
 
-int readInput(const string& input_path, vector<double>& thetas, Point& center, double& center_range) {
+int readInput(const string& input_path, vector<double>& thetas, vector<int>& roi, Point& center, double& center_range) {
 	
 	try {
 		std::ifstream infile(input_path);
@@ -37,19 +37,28 @@ int readInput(const string& input_path, vector<double>& thetas, Point& center, d
 		center_range = std::stod(line);
 		
 		// read the thetas
-		while  (getline(infile, line) ) {
+		while  (getline(infile, line)) {
 			if (line.empty()) {
 				continue;
+			} 
+			if (line == 'X') {
+				break;
 			}
 			double theta_val = std::stod(line);
 			thetas.push_back(theta_val);
 		}
-		return 0;	
+		
+		while (getline(infile, line)) {
+			if (line.empty()) {
+				continue;
+			}
+			int point = std::stoi(line);
+			roi.push_back(point);
+		}	
 	} catch (std::exception& e) {
 		cout << string(e.what()) << endl;
 		return -1;
 	}
-
 }
 
 int main(int argc, char** argv) {
@@ -75,12 +84,13 @@ int main(int argc, char** argv) {
 	string line;
 	while (std::cin >> line) {
 		Mat img = imread(line, CV_LOAD_IMAGE_GRAYSCALE);
-		namedWindow(winName, WINDOW_AUTOSIZE);
-		imshow(winName, img);
+		cvtColor(img, img_bgr, COLOR_GRAY2BGR);
+		img_bgr.copyTo(img_bgr2);
+		double needleAngle = locateNeedle(img, center, center_range);
 		// double needle_value = readNeedleValue();  // ya da int hangisi olursa
 		// to try
 		double needle_value = center_range;
-		std::cout << needle_value << std::endl;
+		std::cout << img.rows << std::endl;
 		std::cout.flush();
 	}
 

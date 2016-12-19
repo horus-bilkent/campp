@@ -10,12 +10,11 @@ import picamera
 import auxiliary
 from pykafka import KafkaClient
 
-def capture_image(image_path, image_res):
-		camera = picamera.PiCamera()
-		camera.resolution = image_res
-		time.sleep(2)
-		camera.capture(image_path)
-
+def capture_image(image_path, resolution):
+	camera = picamera.PiCamera()
+	camera.resolution = resolution
+	camera.capture(image_path)
+	camera.close()
 
 CONFIG_FILE = './raspberry_config.json'
 MSG_TIMEOUT = 30
@@ -41,41 +40,47 @@ if __name__ == "__main__":
 		
 	client = KafkaClient(hosts=broker_connect)
 	topic_appliance = client.topics[bytes(appliance_topic)]
+	topic_stream = client.topics[bytes(stream_topic)]
+
 	
 	if not os.path.isfile(write_initialization):
-		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
 		for message_recv in consumer:
 			print 'Waiting for client initialization...'
 			if message_recv is not None:
 				begin_msg = json.loads(message_recv.value)
-				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin' and int(time.time()) <= int(begin_msg['timestamp']) + MSG_TIMEOUT:
+				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_begin':
 					print 'Received, initialization command.'
 					transaction_id = begin_msg['transaction_id']
+					# capture image
+					print 'Capturing the initialization image...'
+					image_path = './image_' + auxiliary.get_time() + '.jpg'
+					capture_image(image_path, resolution)
+					with open(image_path, 'rb') as image_file:
+						image_pickled = jsonpickle.encode(bytearray(image_file.read()))
+					
+					with topic_appliance.get_sync_producer(max_request_size=50000000) as producer:
+						# generate the json message
+						print 'Sending...'
+						image_message = auxiliary.generate_message(appliance_id=appliance_id, msg_type='initialization_image', transaction_id=transaction_id, value=image_pickled)
+						producer.produce(image_message)
+						os.remove(image_path)
+						print 'Waiting for the confirmation...'
+				if 'timestamp' in begin_msg and 'transaction_id' in begin_msg and 'type' in begin_msg and begin_msg['type'] == 'initialization_confirm' and begin_msg['transaction_id'] == transaction_id:
+					print 'Image confirmed.'
 					break
-
-		# capture image
-		print 'Capturing the initialization image...'
-		image_path = './image_' + auxiliary.get_time() + '.jpg'
-		capture_image(image_path, resolution)
-		with open(image_path, 'rb') as image_file:
-			image_pickled = jsonpickle.encode(bytearray(image_file.read()))
+						
 		
-		with topic_appliance.get_sync_producer(max_request_size=50000000) as producer:
-			# generate the json message
-			print 'Sending'
-			image_message = auxiliary.generate_message(appliance_id=appliance_id, msg_type='initialization_image', transaction_id=transaction_id, value=image_pickled)
-			producer.produce(image_message)
-			# os.remove(image)
-
 		# read the initialization parameters after client initialization
-		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
 		for message_recv in consumer:
 			if message_recv is not None:
 				end_msg = json.loads(message_recv.value)
+				print 'Waiting for initialization end message...'
 				if 'transaction_id' in end_msg and 'type' in end_msg and end_msg['type'] == 'initialization_end' and end_msg['transaction_id'] == transaction_id:
 					print 'Received'
 					with open(write_initialization, 'w') as outfile:
-						outfile.write(message_recv_json['value'])
+						outfile.write(end_msg['value'])
 						break
 		
 	else:
@@ -86,9 +91,9 @@ if __name__ == "__main__":
 			child = subprocess.Popen([find_needle, write_initialization], shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE)		
 			while True:
 				image_path = 'image_' + auxiliary.get_time() + '.jpg'
-				capture_image(image, resolution)
+				capture_image(image_path, resolution)
 				print 'Processing: ' + image_path
-				child.stdin.write(image_path)
+				child.stdin.write(image_path + "\n")
 				child.stdin.flush()
 				line = child.stdout.readline()
 				child.stdout.flush()

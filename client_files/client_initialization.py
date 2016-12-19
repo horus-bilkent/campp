@@ -40,41 +40,51 @@ if __name__ == "__main__":
 	
 	topic_appliance = client.topics[bytes(appliance_topic)]
 	
-	transaction_id=random.randint(1, 2^30)
 	# inititialize the sequence
 	with topic_appliance.get_sync_producer() as producer:
+			transaction_id=random.randint(1, 2^30)
 			begin_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_begin')
 			producer.produce(begin_msg)
 			
 	# consume the message with image
-	consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
+	consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
 	for message_recv in consumer:
 		if message_recv is not None:
 			image_msg = json.loads(message_recv.value)
 			if 'transaction_id' in image_msg and 'type' in image_msg and image_msg['type'] == 'initialization_image' and image_msg['transaction_id'] == transaction_id: 
 				print 'Received, initialization image.'
 				image_bytes = image_msg['value']
-				image_path = './image_' + str(int(time.time())) + '.jpg'
-				output_file = './preprocess_output_' + str(int(time.time()))
+				image_path = './image_' + auxiliary.get_time() + '.jpg'
+				output_file = './preprocess_output_' + auxiliary.get_time()
 				
 				write_jpg(image_bytes, image_path)
-				#ret_val = 0
 				ret_val = subprocess.call([preprocess, image_path, output_file])
 				
 				if ret_val != 0 or not os.path.isfile(output_file):
-					print 'Initialization failed, cannot execute preprocessing'
-					exit(1)
-												
-				with open(output_file, 'r') as infile:
-					output = infile.read()
+					print 'A new image will be requested, cannot execute preprocessing'
 					
-				os.remove(image_path)
-				# os.remove(output_file)
-				break
-				
+					with topic_appliance.get_sync_producer() as producer:
+							transaction_id=random.randint(1, 2^30)
+							begin_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_begin')
+							producer.produce(begin_msg)
+				else:
+					print 'Initialization confirmed.'
+					with topic_appliance.get_sync_producer() as producer:
+							begin_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_confirm')
+							producer.produce(begin_msg)
+													
+					with open(output_file, 'r') as infile:
+						output = infile.read()
+					
+					os.remove(image_path)
+					os.remove(output_file)
+					break
+	
+	time.sleep(5)
+	
 	# produce the initialization end message contains the configuration
 	with topic_appliance.get_sync_producer() as producer:
-		print 'Sending:'
+		print 'Sending the configuration parameters:'
 		end_msg = auxiliary.generate_message(appliance_id=appliance_id, transaction_id=transaction_id, msg_type='initialization_end', value=output)
 		producer.produce(end_msg)
 
