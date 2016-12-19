@@ -16,6 +16,7 @@ using namespace cv;
 using namespace std;
 
 const string winName = "APPLIANCE";
+Mat img, img_bgr, img_tmp;
 
 
 int readInput(const string& input_path, vector<double>& thetas, vector<int>& roi, Point& center, double& center_range) {
@@ -83,9 +84,14 @@ int main(int argc, char** argv) {
 
 	string line;
 	while (std::cin >> line) {
-		Mat img = imread(line, CV_LOAD_IMAGE_GRAYSCALE);
+		double needleAngle = locateNeedle(img, center, CENTER_RANGE);
+		img_tmp = imread(image_file, CV_LOAD_IMAGE_GRAYSCALE);
+		Size size(750, img_tmp.rows * (750.0/img_tmp.cols));
+		resize(img_tmp, img, size, 0, 0, INTER_LANCZOS4);
+		// img_tmp.copyTo(img);
 		cvtColor(img, img_bgr, COLOR_GRAY2BGR);
-		img_bgr.copyTo(img_bgr2);
+		Mat img = imread(line, CV_LOAD_IMAGE_GRAYSCALE);
+		
 		double needleAngle = locateNeedle(img, center, center_range);
 		// double needle_value = readNeedleValue();  // ya da int hangisi olursa
 		// to try

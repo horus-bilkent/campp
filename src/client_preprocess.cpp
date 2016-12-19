@@ -16,15 +16,15 @@ using namespace cv;
 using namespace std;
 
 const string winName = "PREPROCESS";
-Mat img, img_bgr, img_tmp;
-double CENTER_RANGE = 40;
+Mat img, img_bgr, img_tmp, img_pro;
+double CENTER_RANGE = 50;
 int request_slider = 0;
 int preprocess_slider = 0;
 int rec_width = 0;
 int rec_height = 0;
-bool request_new = false;
+bool request_new = true;
+bool cropped = false;
 Point center, rec_center;
-double center_range;
 
 vector<int> roi(4);
 vector<double> thetas;
@@ -37,7 +37,7 @@ void writeOutput(const string& output_path) {
 		outfile << "\n";
 		outfile << center.y;
 		outfile << "\n" ;
-		outfile << center_range;
+		outfile << CENTER_RANGE;
 		outfile << "\n";
 		
 		for (auto theta : thetas) {
@@ -72,32 +72,51 @@ void drawScaleMark(Mat &im, double theta, double cx, double cy, double cr, bool 
 }
 
 void preprocess(int, void *) {
-	if (preprocess_slider == 1) {
-		request_new = true;
+	if (preprocess_slider == 1 && !cropped) {
+			cout << "CROPPING" << endl;
+			cout << roi.at(0) << " " << roi.at(1) <<  " " << roi.at(2) << " " << roi.at(3) << endl;
+			cropped = true;	
+			cv::Rect myROI(roi.at(0), roi.at(1), roi.at(2), roi.at(3));
+			cv::Mat cropped(img, myROI);
+			cropped.copyTo(img);
+			imshow(winName, img);
+	}
+	if (preprocess_slider == 2) {
+		img.copyTo(img_bgr);
 		cout << "PREPROCESS STARTED: CENTER(" << center.x << ", " << center.y << ")"  << endl;
 		cout << "Locate Needle" << endl;
 		double needleAngle = locateNeedle(img, center, CENTER_RANGE);
 		cout << "Locate Scale Marks" << endl;
-		double perimeter = locateScalemarks(img, thetas, center, center_range);
+		double perimeter = locateScalemarks(img, thetas, center, CENTER_RANGE);
 		drawScaleMark(img_bgr, needleAngle, center.x, center.y, perimeter, true);
+		circle(img_bgr, center, perimeter, Scalar(0, 255, 255), 3, CV_AA);
 		for(size_t i = 0; i < thetas.size(); i++) {
 			drawScaleMark(img_bgr, thetas[i], center.x, center.y, perimeter, false);
 		}
 		sort(thetas.begin(), thetas.end());
-		imshow(winName, img_bgr);
 	}
+	
+	if (preprocess_slider == 3) {
+		cout << "Accepting the image." << endl;
+		request_new = false;
+		exit(0);
+	}
+	
+	imshow(winName, img_bgr);
 }
 
-void drawImage(int, void *) {
+void drawImage(int event, void *) {
 	img.copyTo(img_bgr);
-    circle(img_bgr, center, 5, Scalar(212, 35, 78), 5, CV_AA);
-    rectangle(img_bgr, Point(rec_center.x - rec_width / 2, rec_center.y - rec_height/2), Point(rec_center.x + rec_width / 2, rec_center.y + rec_height/2), Scalar(0,0,255), 5, CV_AA,0);
-    circle(img_bgr, rec_center, 5, Scalar(67,13, 214), 5, CV_AA);
-    imshow(winName, img_bgr);
-    roi.at(0) = rec_center.x - rec_width / 2; 
-    roi.at(1) = rec_center.y - rec_height / 2;
-    roi.at(2) = rec_center.x + rec_width / 2;
-    roi.at(3) = rec_center.y + rec_height / 2;
+	if (cropped == false) {
+		circle(img_bgr, rec_center, 5, Scalar(67,13, 214), 5, CV_AA);
+		rectangle(img_bgr, Point(rec_center.x - rec_width / 2, rec_center.y - rec_height/2), Point(rec_center.x + rec_width / 2, rec_center.y + rec_height/2), Scalar(0,0,255), 5, CV_AA,0);
+		roi.at(0) = rec_center.x - rec_width / 2; 
+		roi.at(1) = rec_center.y - rec_height / 2;
+		roi.at(2) = rec_width;
+		roi.at(3) = rec_height;	
+	}
+	circle(img_bgr, center, 5, Scalar(212, 35, 78), 5, CV_AA);
+	imshow(winName, img_bgr);    
 }
 
 void mouseCB(int event, int x, int y, int flags, void* userdata) {
@@ -105,8 +124,10 @@ void mouseCB(int event, int x, int y, int flags, void* userdata) {
         center = Point(x, y);
         drawImage(0,0);
     } else if (flags & EVENT_FLAG_RBUTTON)  {
-        rec_center = Point(x, y);
-        drawImage(0,0);
+		if (cropped == false) {
+			rec_center = Point(x, y);
+			drawImage(0,0);
+		}
 	}
 }
 
@@ -127,7 +148,7 @@ int main(int argc, char** argv) {
 	// img_tmp.copyTo(img);
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
 	namedWindow(winName, WINDOW_AUTOSIZE);
-	createTrackbar("PREPROCESS", winName, &preprocess_slider, 2, preprocess);
+	createTrackbar("PREPROCESS", winName, &preprocess_slider, 3, preprocess);
 	createTrackbar("Rec Width", winName, &rec_width, 2000, drawImage);
 	createTrackbar("Rec Height", winName, &rec_height, 2000, drawImage);
 
