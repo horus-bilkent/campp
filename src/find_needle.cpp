@@ -69,11 +69,7 @@ int main(int argc, char** argv) {
 
 
 	string line;
-	Mat img;
-	Mat img_tmp = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
-	
-	Size size(750, img_tmp.rows * (750.0/img_tmp.cols));
-	resize(img_tmp, img, size, 0, 0, INTER_LANCZOS4);
+	Mat img = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
 	cv::Rect myROI(roi.at(0), roi.at(1), roi.at(2), roi.at(3));
 	cv::Mat cropped(img, myROI);
 	double needleAngle = locateNeedle(cropped, center, center_range);
@@ -88,7 +84,7 @@ int main(int argc, char** argv) {
 	
 	if (debug) {
 		const string winName = "DEBUG";
-		namedWindow(winName, WINDOW_AUTOSIZE);
+		namedWindow(winName, WINDOW_NORMAL);
 		imshow(winName, cropped);
 		waitKey(3000);
 	}

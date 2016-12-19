@@ -148,12 +148,9 @@ int main(int argc, char** argv) {
 	string config_file = argv[2];
 	
 	
-	img_tmp = imread(image_file, CV_LOAD_IMAGE_GRAYSCALE);
-	Size size(750, img_tmp.rows * (750.0/img_tmp.cols));
-	resize(img_tmp, img, size, 0, 0, INTER_LANCZOS4);
-	// img_tmp.copyTo(img);
+	img = imread(image_file, CV_LOAD_IMAGE_GRAYSCALE);
 	cvtColor(img, img_bgr, COLOR_GRAY2BGR);
-	namedWindow(winName, WINDOW_AUTOSIZE);
+	namedWindow(winName, WINDOW_NORMAL);
 	createTrackbar("PREPROCESS", winName, &preprocess_slider, 3, preprocess);
 	createTrackbar("Rec Width", winName, &rec_width, 2000, drawImage);
 	createTrackbar("Rec Height", winName, &rec_height, 2000, drawImage);
