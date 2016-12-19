@@ -47,7 +47,7 @@ if __name__ == "__main__":
 			producer.produce(begin_msg)
 			
 	# consume the message with image
-	consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
+	consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
 	for message_recv in consumer:
 		if message_recv is not None:
 			image_msg = json.loads(message_recv.value)

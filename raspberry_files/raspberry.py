@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
 	
 	if not os.path.isfile(write_initialization):
-		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
 		for message_recv in consumer:
 			print 'Waiting for client initialization...'
 			if message_recv is not None:
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 						
 		
 		# read the initialization parameters after client initialization
-		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000, auto_offset_reset=OffsetType.LATEST)
+		consumer = topic_appliance.get_simple_consumer(fetch_message_max_bytes=50000000)
 		for message_recv in consumer:
 			if message_recv is not None:
 				end_msg = json.loads(message_recv.value)
